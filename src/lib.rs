@@ -1,5 +1,6 @@
 pub mod codes;
 pub mod date_time;
+pub mod http;
 pub mod resources;
 pub mod types;
 

@@ -29,3 +29,4 @@ pastey = "0.2"
 
 [dev-dependencies]
 assert-json-diff = "2.0.2"
+rstest = "0.23"
