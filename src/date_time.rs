@@ -236,6 +236,31 @@ impl FromStr for Instant {
     }
 }
 
+impl std::fmt::Display for Instant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0.format(&Rfc3339).map_err(|_| std::fmt::Error)?)
+    }
+}
+
+impl std::fmt::Display for Date {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Date::Year(year) => write!(f, "{year}"),
+            Date::YearMonth(year, month) => write!(f, "{year}-{:02}", *month as u8),
+            Date::Date(date) => write!(f, "{:04}-{:02}-{:02}", date.year(), date.month() as u8, date.day()),
+        }
+    }
+}
+
+impl std::fmt::Display for DateTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DateTime::Date(date) => write!(f, "{date}"),
+            DateTime::DateTime(instant) => write!(f, "{instant}"),
+        }
+    }
+}
+
 impl PartialOrd for Date {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
@@ -345,5 +370,52 @@ impl PartialOrd<DateTime> for OffsetDateTime {
             DateTime::Date(date) => self.date().partial_cmp(date),
             DateTime::DateTime(Instant(datetime)) => self.partial_cmp(datetime),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case(Date::Year(2024), "2024")]
+    #[case(Date::YearMonth(2024, time::Month::March), "2024-03")]
+    #[case(Date::YearMonth(2024, time::Month::December), "2024-12")]
+    #[case(Date::Date(time::macros::date!(2024 - 03 - 07)), "2024-03-07")]
+    fn displays_date(#[case] date: Date, #[case] expected: &str) {
+        assert_eq!(date.to_string(), expected);
+    }
+
+    #[rstest]
+    #[case(time::macros::datetime!(2024 - 03 - 07 12:34:56 UTC), "2024-03-07T12:34:56Z")]
+    #[case(time::macros::datetime!(2024 - 03 - 07 12:34:56.789 UTC), "2024-03-07T12:34:56.789Z")]
+    #[case(time::macros::datetime!(2024 - 03 - 07 12:34:56 +2), "2024-03-07T12:34:56+02:00")]
+    fn displays_instant(#[case] datetime: OffsetDateTime, #[case] expected: &str) {
+        assert_eq!(Instant(datetime).to_string(), expected);
+    }
+
+    #[rstest]
+    #[case("2024")]
+    #[case("2024-03")]
+    #[case("2024-03-07")]
+    #[case("2024-03-07T12:34:56Z")]
+    #[case("2024-03-07T12:34:56.789Z")]
+    #[case("2024-03-07T12:34:56+02:00")]
+    fn datetime_round_trip(#[case] input: &str) {
+        assert_eq!(DateTime::from_str(input).unwrap().to_string(), input);
+    }
+
+    #[rstest]
+    #[case(DateTime::Date(Date::Year(2024)), "2024")]
+    #[case(DateTime::Date(Date::YearMonth(2024, time::Month::March)), "2024-03")]
+    #[case(DateTime::Date(Date::Date(time::macros::date!(2024 - 03 - 07))), "2024-03-07")]
+    #[case(
+        DateTime::DateTime(Instant(time::macros::datetime!(2024 - 03 - 07 12:34:56 UTC))),
+        "2024-03-07T12:34:56Z"
+    )]
+    fn displays_datetime(#[case] datetime: DateTime, #[case] expected: &str) {
+        assert_eq!(datetime.to_string(), expected);
     }
 }
